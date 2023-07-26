@@ -52,8 +52,8 @@ This file contains a huge mess of files, including:
 + ASB files
   - These are compiled binary files containing cutscene information. You can view them with a hex editor, and edit the strings within in the same way, bearing in mind that the
 start of each string must be at the same offset as it was when you started, and each string must end with a null character.
-  - I am working on a tool that works past these limitations.
-  - Every .asb file the game uses can be found in both all.apk and fs.apk, but the ones in fs.apk are the ones you want to edit.
+  -Alternatively, download the experimental editor from the releases section, which can somewhat overcome these limitations.
+  - Every .asb file the game uses can be found in both all.apk and fs.apk, and you will need to put your edited files into both of them.
 + GOP files
   - These are also compiled binary files, containing data such as character names, anagram minigame data, the text in those bubble minigames,
 the questions and answers for the quiz minigame, system text, and the texts that display when the stealth minigame starts.
