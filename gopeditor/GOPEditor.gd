@@ -2,6 +2,7 @@ extends Control
 
 onready var font = load("res://Noto_Sans_JP/static/NotoSansJP-Medium.ttf")
 
+var applyGdatFix = false
 var editingFile = ""
 var saveFile = ""
 var directoryToScan = ""
@@ -35,8 +36,11 @@ func copyStrings():
 	for i in $Main/ScrollContainer/VBoxContainer.get_children():
 		strings.push_back(i.text)
 	var nsl = 2
+	if (applyGdatFix):
+		nsl = 1
 	for i in strings:
-		nsl += i.to_utf8().size()+1
+		if (!applyGdatFix) || (i != "GOP GDAT"):
+			nsl += i.to_utf8().size()+1
 	if (nsl > stringBuffer.size()-8):
 		difference = nsl - (stringBuffer.size()-8)
 		return false
@@ -56,13 +60,20 @@ func saveFile():
 	if (!copyStrings()):
 		OS.alert("File too big! Remove at least "+str(difference)+" bytes of data.")
 		return
+	var lf = length3
 	var f = File.new()
 	f.open(saveFile, File.WRITE)
 	f.store_buffer(headers)
+	lf -= headers.size()
 	regenerateOffsets()
 	for i in offsets:
 		f.store_buffer(i)
-	f.store_buffer(paddingData)
+		lf -= i.size()
+	print(lf)
+	for i in paddingData:
+		if (lf > 1):
+			f.store_8(i)
+			lf -= 1
 	f.store_8(0)
 	for k in range(strings.size()):
 		var i = strings[k]
@@ -70,13 +81,18 @@ func saveFile():
 			print(difference)
 			for j in range(difference):
 				f.store_8(0)
-		f.store_buffer(i.to_utf8())
+		if !((k == strings.size()-1) && (applyGdatFix)):
+			f.store_buffer(i.to_utf8())
+			f.store_8(0)
+	if (!applyGdatFix):
 		f.store_8(0)
-	f.store_8(0)
 	f.store_buffer(footers)
 	f.close()
 
+var length3 = 0
+
 func readFileIntoMemory():
+	length3 = 0
 	for i in $Main/ScrollContainer/VBoxContainer.get_children():
 		i.get_parent().remove_child(i)
 		i.queue_free()
@@ -94,9 +110,11 @@ func readFileIntoMemory():
 	var until1 = 28
 	var currentArray = PoolByteArray([])
 	var amountOfOffsets = 0
+	var startReadingStrings = false
 	while !f.eof_reached():
 		if (whereToPut == 0):
 			var b = f.get_buffer(1)[0]
+			length3 += 1
 			headers.push_back(b)
 			if (headers.size() == 8) && (headers.get_string_from_ascii() != magicNumber):
 				OS.alert("Not a valid GOP file.")
@@ -119,21 +137,30 @@ func readFileIntoMemory():
 		elif (whereToPut == 1):
 			amountOfOffsets -= 1
 			offsets.push_back(f.get_buffer(4))
+			length3 += 4
 			if amountOfOffsets == 0:
 				whereToPut = 2
 		elif (whereToPut == 2):
 			var readUntil = true
 			while readUntil:
-				var l = f.get_buffer(1)[0]
-				stringBuffer.append(l)
-				if (stringBuffer.size() > 0) &&\
-				 (l == 84) && (stringBuffer.subarray(stringBuffer.size()-8, \
-				stringBuffer.size()-1).get_string_from_utf8() == "GOP GDAT"):
-					readUntil = false
-			var extra = stringBuffer.find(83)-1
-			for i in range(extra):
-				paddingData.push_back(stringBuffer[0])
-				stringBuffer.remove(0)
+				if (!startReadingStrings):
+					paddingData.push_back(f.get_buffer(1)[0])
+					if (paddingData[paddingData.size()-1] == 83):
+						startReadingStrings = true
+						paddingData.remove(paddingData.size()-1)
+						paddingData.remove(paddingData.size()-1)
+						length3 -= 1
+						stringBuffer.append(0)
+						stringBuffer.append(83)
+					else:
+						length3 += 1
+				else:
+					var l = f.get_buffer(1)[0]
+					stringBuffer.append(l)
+					if (stringBuffer.size() > 0) &&\
+					 (l == 84) && (stringBuffer.subarray(stringBuffer.size()-8, \
+					stringBuffer.size()-1).get_string_from_utf8() == "GOP GDAT"):
+						readUntil = false
 			for i in offsets:
 				var l = PoolByteArray([])
 				var j = i[0]
@@ -143,14 +170,22 @@ func readFileIntoMemory():
 				while (stringBuffer[j] != 0):
 					l.push_back(stringBuffer[j])
 					j += 1
+					if (stringBuffer.size() == j):
+						break
 				strings.push_back(l.get_string_from_utf8())
-				var textEdit = LineEdit.new()
+				var textEdit = TextEdit.new()
 				textEdit.text = strings[strings.size()-1]
 				textEdit.rect_min_size.x = 500
+				textEdit.rect_min_size.y = 100
+				textEdit.scroll_vertical = false
 				textEdit.set("custom_fonts/font", font)
 				$Main/ScrollContainer/VBoxContainer.add_child(textEdit)
 				textEdit.set_owner($Main/ScrollContainer/VBoxContainer)
 				textEdit.name = str(strings.size()-1)
+			if (strings.back() == "GOP GDAT"):
+				applyGdatFix = true
+			else:
+				applyGdatFix = false
 			whereToPut = 3
 			footers.append_array("GOP GDAT".to_utf8())
 		elif (whereToPut == 3):
@@ -198,7 +233,6 @@ func _on_FileOpen_pressed():
 	if (directoryToScan != ""):
 		$OpenFile.current_dir = directoryToScan
 	$OpenFile.popup_centered()
-	$Main/TitleBar/File/PopupMenu.hide()
 	pass # Replace with function body.
 
 
@@ -217,7 +251,6 @@ func _on_FileSaveAs_pressed():
 	elif (directoryToScan != ""):
 		$SaveFile.current_dir = directoryToScan
 	$SaveFile.popup_centered()
-	$Main/TitleBar/File/PopupMenu.hide()
 	pass # Replace with function body.
 
 
