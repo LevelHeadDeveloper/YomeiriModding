@@ -1,0 +1,100 @@
+[gd_scene load_steps=5 format=3 uid="uid://da20clqkl1crg"]
+
+[ext_resource type="Script" path="res://Ripper.gd" id="1_dghtq"]
+[ext_resource type="FontFile" uid="uid://cyragw7kupkrp" path="res://Cutive_Mono/CutiveMono-Regular.ttf" id="2_f53fq"]
+[ext_resource type="FontFile" uid="uid://c5r2dve5fvgm5" path="res://FOT-RodinNTLG Pro M.otf" id="3_y1q48"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_8fux4"]
+bg_color = Color(0, 0, 0, 1)
+
+[node name="Control" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_dghtq")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="."]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="HBoxContainer"]
+layout_mode = 2
+
+[node name="Load" type="Button" parent="HBoxContainer/VBoxContainer"]
+layout_mode = 2
+text = "Load"
+
+[node name="Save" type="Button" parent="HBoxContainer/VBoxContainer"]
+layout_mode = 2
+text = "Save"
+
+[node name="Save2" type="Button" parent="HBoxContainer/VBoxContainer"]
+layout_mode = 2
+text = "Save As..."
+
+[node name="Directories" type="Button" parent="HBoxContainer/VBoxContainer"]
+layout_mode = 2
+text = "Manage Directories"
+
+[node name="ScrollContainer" type="ScrollContainer" parent="HBoxContainer"]
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="HBoxContainer/ScrollContainer"]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="TextEdit" type="TextEdit" parent="HBoxContainer"]
+custom_minimum_size = Vector2(400, 0)
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_f53fq")
+theme_override_font_sizes/font_size = 20
+theme_override_styles/normal = SubResource("StyleBoxFlat_8fux4")
+text = "ASBEditor Initialized.
+Press \"Load\" to open a file."
+editable = false
+
+[node name="FileDialog" type="FileDialog" parent="."]
+title = "Open a File"
+size = Vector2i(1000, 400)
+ok_button_text = "Open"
+file_mode = 0
+access = 2
+filters = PackedStringArray("*.asb")
+
+[node name="FileDialog2" type="FileDialog" parent="."]
+size = Vector2i(1000, 400)
+ok_button_text = "Save"
+access = 2
+filters = PackedStringArray("*.asb")
+
+[node name="FileDialog3" type="FileDialog" parent="."]
+title = "Select Voice Line Folder"
+size = Vector2i(1000, 400)
+ok_button_text = "Select Current Folder"
+mode_overrides_title = false
+file_mode = 2
+access = 2
+filters = PackedStringArray("*.asb")
+
+[node name="Label" type="Label" parent="."]
+layout_mode = 0
+offset_top = 614.0
+offset_right = 83.0
+offset_bottom = 637.0
+theme_override_fonts/font = ExtResource("3_y1q48")
+text = "Bytes: N/A"
+
+[connection signal="pressed" from="HBoxContainer/VBoxContainer/Load" to="." method="_on_load_pressed"]
+[connection signal="pressed" from="HBoxContainer/VBoxContainer/Save" to="." method="_on_save_pressed"]
+[connection signal="pressed" from="HBoxContainer/VBoxContainer/Save2" to="." method="_on_save_2_pressed"]
+[connection signal="canceled" from="FileDialog" to="." method="_on_file_dialog_canceled"]
+[connection signal="confirmed" from="FileDialog" to="." method="_on_file_dialog_confirmed"]
+[connection signal="canceled" from="FileDialog2" to="." method="_on_file_dialog_canceled"]
+[connection signal="confirmed" from="FileDialog2" to="." method="_on_file_dialog_2_confirmed"]
+[connection signal="canceled" from="FileDialog3" to="." method="_on_file_dialog_canceled"]
+[connection signal="confirmed" from="FileDialog3" to="." method="_on_file_dialog_3_confirmed"]
