@@ -62,6 +62,12 @@ class ASBDataSegment:
 						title = "Command"
 						stringOffsetPositions.push_back(i+5)
 					pass
+		var index = 1
+		while (index < rawData.size()):
+			var ind = rawData[index]
+			if (ind == 1):
+				stringOffsetPositions.push_back(index+1)
+			index += 5
 	func get_type():
 		if (rawData[0] == 0):
 			return -4
@@ -132,11 +138,11 @@ func optimize_for_command(t):
 	t.add_theme_constant_override("line_spacing", 16)
 	t.add_theme_constant_override("outline_size", 1)
 	t.tooltip_text = "A miscellaneous utility string."
-	t.editable = false
 	t.add_theme_font_override("font", load("res://Cutive_Mono/CutiveMono-Regular.ttf"))
 	t.add_theme_font_size_override("font_size", 20)
 	t.add_theme_stylebox_override("normal", load("res://command.tres"))
 	t.add_theme_color_override("caret_color", Color.DARK_BLUE)
+	return t
 
 func optimize_for_voice(v):
 	var p = v.get_parent()
@@ -261,8 +267,10 @@ func replaceDisplaySegmentAt(index, text, nm, type):
 		t1 = optimize_for_branch(t1)
 		t2 = optimize_for_branch(t2)
 	else:
-		optimize_for_command(t1)
-		optimize_for_command(t2)
+		t1 = optimize_for_command(t1)
+		t2 = optimize_for_command(t2)
+	if (t2.has_signal("text_changed")):
+		t2.text_changed.connect(updateBlock.bind(index))
 	t2.focus_entered.connect(updateBlock.bind(index))
 	if t1.get("editable") != null:
 		t1.editable = false
@@ -311,8 +319,7 @@ func findAssociatedStringOffsetLocations(loc):
 func getStrings():
 	var rv = PackedStringArray(["__main"])
 	for i in $HBoxContainer/ScrollContainer/VBoxContainer.get_children():
-		if (!rv.has(i.get_child(1).text)):
-			rv.push_back(i.get_child(1).text)
+		rv.push_back(i.get_child(1).text)
 	return rv
 
 func getOffsetOfStringAt(index, fromwhere):
@@ -329,6 +336,7 @@ func intToBytes(i):
 
 var stringList = []
 var stringOrder = []
+var usedOffsets = []
 
 var editableBlocks = []
 var blockPadding = {}
@@ -373,8 +381,6 @@ func reloadEditableBlocks():
 		var middle_pos = floor((i[1]-1)/2)
 		for k in range(i[1]):
 			var c = $HBoxContainer/ScrollContainer/VBoxContainer.get_child(i[0]+k)
-			if (c.get_child(1).has_signal("text_changed")):
-				c.get_child(1).text_changed.connect(updateBlock.bind(i[0]+k))
 			var tex_path = "block"
 			if (k == top_pos):
 				if (k == middle_pos):
@@ -453,16 +459,26 @@ func updateBlock(index):
 func saveMemoryToFile():
 	var s = getStrings()
 	var f = FileAccess.open(savePath, FileAccess.WRITE)
+	var f2 = FileAccess.open(savePath+".txt", FileAccess.WRITE)
 	var headerOffsets = findAssociatedStringOffsetLocations(-1)
 	var b = headerData.rawData
 	f.store_buffer(b)
 	var idx = 0
 	for p in bodySegments:
-		var offsets = findAssociatedStringOffsetLocations(idx)
-		var b0 = p.rawData
+		var offsets = []
+		var b0 = p.rawData.duplicate()
 		var c0 = p.stringOffsetPositions
+		var index = 0
+		for i in c0:
+			var mah_b0i = b0[i]+(256*b0[i+1])+(256*256*b0[i+2])+(256*256*256*b0[i+3])
+			var d0 = usedOffsets.find(mah_b0i)
+			if (d0 != -1):
+				print(str(idx)+": "+str(i)+", "+str(d0)+", "+str(mah_b0i))
+				offsets.push_back([getOffsetOfStringAt(d0+1, s), index])
+			index += 1
 		for i in offsets:
-			var ll = getOffsetOfStringAt(i[0]+1, s)
+			var ll = i[0]
+			print(ll)
 			var bytes = intToBytes(ll)
 			var o = c0[i[1]]
 			for j in range(bytes.size()):
@@ -472,6 +488,7 @@ func saveMemoryToFile():
 	var stringIndex = 0
 	for st in s:
 		f.store_string(st)
+		f2.store_line(st)
 		if (st.length() > 0):
 			f.store_8(0)
 		if (blockPadding.has(stringIndex)) && (blockPadding[stringIndex] > 0):
@@ -480,6 +497,7 @@ func saveMemoryToFile():
 			f.store_8(0)
 		stringIndex += 1
 	f.close()
+	f2.close()
 
 func removeEmptyBodySegments():
 	for i in $HBoxContainer/ScrollContainer/VBoxContainer.get_children():
@@ -492,6 +510,7 @@ func readFileIntoMemory():
 	bodySegments.clear()
 	stringdata.clear()
 	stringList.clear()
+	usedOffsets.clear()
 	stringOrder.clear()
 	editableBlocks.clear()
 	blockPadding.clear()
@@ -551,7 +570,7 @@ func readFileIntoMemory():
 	for k in range(m0.size()):
 		var j = m0[k]
 		var stringBeginning = getStringNumberFromOffset(n0[k])
-		replaceDisplaySegmentAt(stringList.find(j), j, str(stringBeginning)+\
+		replaceDisplaySegmentAt(usedOffsets.find(n0[k]), j, str(stringBeginning)+\
 		"[-1, "+str(sind0)+"]", "Header")
 		sind0 += 1
 	var ind = 0
@@ -564,7 +583,7 @@ func readFileIntoMemory():
 		for k in range(m.size()):
 			var j = m[k]
 			var stringBeginning = getStringNumberFromOffset(n[k])
-			replaceDisplaySegmentAt(stringList.find(j), j, str(stringBeginning)+\
+			replaceDisplaySegmentAt(usedOffsets.find(n[k]), j, str(stringBeginning)+\
 			"["+str(ind)+", "+str(sind)+"]", i.title)
 			s += j
 			s += ", "
@@ -585,13 +604,19 @@ func customUiSort(a, b):
 
 func refreshStringList():
 	stringList.clear()
+	usedOffsets.clear()
+	usedOffsets.push_back(0)
 	var bu = PackedByteArray([])
+	var index = 0
 	for i in stringdata:
 		bu.push_back(i)
 		if (i == 0):
 			var s = bu.get_string_from_utf8()
 			stringList.push_back(s)
+			if (index < stringdata.size()):
+				usedOffsets.push_back(index+1)
 			bu.clear()
+		index += 1
 
 func sortUi():
 	refreshStringList()
@@ -617,12 +642,17 @@ func lookForOrphanedStrings():
 							break
 				if (text.size() != 0):
 					var tex = text.get_string_from_utf8()
-					replaceDisplaySegmentAt(stringList.find(tex), tex, \
+					replaceDisplaySegmentAt(usedOffsets.find(i+1), tex, \
 					str(stix), "Orphan")
 			stix += 1
 
 func _process(delta):
-	$HBoxContainer.position.x = (get_viewport_rect().size.x/2)-($HBoxContainer.size.x/2)
+	var scale1 = (get_viewport_rect().size/Vector2(1920, 1080))
+	if (scale1.y < scale1.x):
+		scale1.x = scale1.y
+	elif (scale1.x < scale1.y):
+		scale1.y = scale1.x
+	scale = scale1
 	$HBoxContainer/ScrollContainer.custom_minimum_size.y = get_viewport_rect().size.y-10
 
 func _ready():
