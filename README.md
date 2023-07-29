@@ -4,7 +4,7 @@ A collection of information about modding the game Nisekoi: Yomeiri!? (and possi
 
 # What can I get here?
 
-Right now, I've finished one tool, and I'll give you lots of information.
+Two (very experimental) tools which can be used to edit some of the game's data files, as well as everything I know about the game.
 
 # The Game
 
@@ -72,7 +72,7 @@ string into a space that was previously three bytes, and the tool will accomodat
 + ARK Files
   - I have no clue what these are.
 + 2DC Files
-  - Seem to contain sprites, but I haven't found a good way to extract them yet.
+  - Seem to contain sprites. I'm working on a way to extract them.
 + TBL Files
   - Contains plain-text information for stealth sections and cutscenes, but not enough to be useful.
 + AT9 Files
